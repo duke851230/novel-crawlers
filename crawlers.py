@@ -8,6 +8,7 @@ from helpers import (
     add_title_to_file, 
     add_content_to_file,
     get_html_content,
+    retry,
 )
 
 
@@ -55,12 +56,18 @@ class Hjwzw:
 
         return chapter_ids
 
+    @retry(max_retries=3, delay=5, exceptions=(Exception,))
     def get_chapter_title(self, chapter_id: str) -> str:
         url: str = f"{self.base_url}/Book/Read/{self.novel_id},{chapter_id}"
         response_text: str = get_html_content(url)
 
         soup: BeautifulSoup = BeautifulSoup(response_text, "html.parser")
-        title: str = soup.find("h1").get_text().strip()
+        h1_tag = soup.find("h1")
+        
+        if h1_tag is None:
+            raise ValueError(f"無法找到 h1 標籤")
+        
+        title: str = h1_tag.get_text().strip()
         title = "".join(title.split())
 
         # 使用配置構建正則表達式
@@ -75,6 +82,7 @@ class Hjwzw:
             print(f"因無法解析此標題: {title}，故將會直接使用原始標題。")
             return title
 
+    @retry(max_retries=3, delay=5, exceptions=(Exception,))
     def get_chapter_description(self, chapter_id: str) -> Optional[str]:
         url: str = f"{self.base_url}/Book/Read/{self.novel_id},{chapter_id}"
         response_text: str = get_html_content(url)
@@ -95,6 +103,7 @@ class Hjwzw:
             print("未找到 chapter_description")
             return None
 
+    @retry(max_retries=3, delay=5, exceptions=(Exception,))
     def get_chapter_content(self, chapter_id: str) -> str:
         url: str = f"{self.base_url}/Book/Read/{self.novel_id},{chapter_id}"
         response_text: str = get_html_content(url)
@@ -114,6 +123,10 @@ class Hjwzw:
                 element.extract()  # 移除不要的標籤
         
         content: str = content_div.get_text("\n", strip=True) if content_div else ""
+        
+        # 如果內容為空，可能是解析失敗
+        if not content:
+            raise ValueError("無法獲取章節內容，內容為空")
         
         # 如果有找到 description，從 description 開始截取內容
         if description:

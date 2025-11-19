@@ -5,9 +5,10 @@ from requests.models import Response
 from requests.exceptions import RequestException
 
 
-def retry(max_retries=3, delay=5):
+def retry(max_retries=3, delay=5, exceptions=(RequestException,)):
     """
-    A decorator for retrying a function if a RequestException occurs.
+    A decorator for retrying a function if specified exceptions occur.
+    By default, it retries on RequestException.
     """
     def decorator(func):
         @functools.wraps(func)
@@ -15,7 +16,7 @@ def retry(max_retries=3, delay=5):
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except RequestException as e:
+                except exceptions as e:
                     print(f"Attempt {attempt + 1} failed: {e}")
                     if attempt + 1 < max_retries:
                         print(f"Retrying in {delay} seconds...")
